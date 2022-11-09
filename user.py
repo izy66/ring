@@ -11,7 +11,7 @@ class User:
     self.public_key = pp.G1(self.__secret_key)
     self.public_id = pp.Gt(self.__secret_key)
     self.index = len(Ring)
-    Ring.append((self.public_key, self.public_id))
+    Ring.append(R(self.public_key, self.public_id))
 
   # Generate a random signing key pair 
   # (PKsign, SKsign) in (Gt, G1)
@@ -42,26 +42,17 @@ class User:
   ### Signature of Knowledge ###
 
   # parse (c1, c2, c3) <- c23,
-  # prove {(r2, r3, SKu): PID = g3 ^ SKu, and
-  #                   g2 ^ r2 = c1, and 
-  #                   g2 ^ r3 = c2, and
-  #   PKtr ^ r2 * PKsign ^ r3 = c3 / PID}
+  # prove {(r2, r3, SKu, i): PID_i = g3 ^ SKu, and
+  #        PKtr ^ r2 * PKsign ^ r3 = c3 / PID_i}
 
-  def encrypt_identification_and_proof(self, PKtr, PKsign, message):
+  def encrypt_PID_and_sign(self, PKtr, PKsign, message):
 
     r2, r3 = (pp.RandInt(), pp.RandInt())
 
     PID_encryption = [pp.g3 ** r2, pp.g2 * r3, PKtr ** r2 * PKsign ** r3 * self.public_id]
+    PID_signature = signature_of_knowledge_proof(self.index, self.__secret_key, r2, r3, PKtr, PKsign, PID_encryption, message)
 
-    message_hash = pp.Zr_hash(message)
-
-    PID_proof = [
-      schnorr_proof(self.__secret_key, pp.g3, message=message_hash), 
-      schnorr_proof(r2, pp.g3, message=message_hash),
-      schnorr_proof(r3, pp.g2, message=message_hash, on_curve=True), 
-      okamoto_proof(r2, r3, PKtr, PKsign, message=message_hash)]
-
-    return (PID_encryption, PID_proof)
+    return (PID_encryption, PID_signature)
 
   # sign a message (bytes) by encrypting the secret signing key to each Ring member
   # and encrypt self's public identity with the public signing key and tracer's public key
@@ -72,9 +63,9 @@ class User:
     PKsign, SKsign = User.gen_signing_keys()
 
     key_encryption_proof = [self.encrypt_sig_key_and_proof(SKsign, Public_User[0]) for Public_User in Ring]
-    PID_encryption_proof = self.encrypt_identification_and_proof(PKtr, PKsign, message)
+    PID_encryption_signature = self.encrypt_PID_and_sign(PKtr, PKsign, message)
 
-    return [PKsign, key_encryption_proof, PID_encryption_proof]
+    return [PKsign, key_encryption_proof, PID_encryption_signature]
 
   # report a signature by decrypting the corresponding signing key
   # no proof of correct decryption is needed since every party can check
@@ -82,7 +73,7 @@ class User:
 
   def report(self, PKtr, message, signature):
 
-    if not verify_signature(PKtr, message, signature):
+    if not signature_verify(PKtr, message, signature):
       return 0
 
     signing_key_encryption_proof = signature[1]

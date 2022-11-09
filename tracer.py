@@ -11,16 +11,20 @@ class Tracer():
     self.__secret_key = pp.RandInt()
     self.public_key = pp.Gt(self.__secret_key)
 
+  # tracer first verify the signature,
+  # then decrypt the public identification of the signer
+  # and generate a proof of correct decryption
+
   def trace(self, message, signature, report):
 
     try:
-      if not verify_signature(self.public_key, message, signature):
+      if not signature_verify(self.public_key, message, signature):
         return 0
     except:
       raise("Signature verification issue!")
 
     SKsign = report
-    PKsign, key_encryption_proof, PID_encryption_proof = signature
+    PKsign, key_encryption_proof, PID_encryption_signature = signature
 
     try:
 
@@ -31,7 +35,7 @@ class Tracer():
 
       raise("Opps! What's wrong with this report?")
 
-    PID_encryption, PID_proof = PID_encryption_proof
+    PID_encryption, PID_signature = PID_encryption_signature
 
     tr = PID_encryption[2] / pairing(SKsign, PID_encryption[1])
     PID = tr / (PID_encryption[0] ** self.__secret_key) 
@@ -42,5 +46,3 @@ class Tracer():
     ]
     
     return (PID, (tr, SKsign), proof_of_trace)
-
-

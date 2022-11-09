@@ -1,7 +1,9 @@
 from sage.all import *
 from sage.calculus.predefined import x
 from cryptography.hazmat.primitives import hashes
+from collections import namedtuple
 
+# Parameters Credit: https://github.com/blynn/pbc - Ben Lynn, 2006
 # Parameters of Type D curve : 
 #    q : base field size
 # a, b : curve parameters
@@ -20,6 +22,8 @@ k = 6
 F = GF(q ** 6, modulus=x**6+x+1, name='a')
 E = EllipticCurve(F, [a, b])
 Frob = [F.frobenius_endomorphism(i) for i in range(k)]
+
+R = namedtuple("Member", "public_key public_id")
 
 Ring = []
 
@@ -99,6 +103,7 @@ class GenPP:
 
     digest = hashes.Hash(hashes.SHA224())
     digest.update(message)
+
     return self.ModRing(int.from_bytes(digest.finalize(), 'big'))
 
   # return a random element from Z/rZ

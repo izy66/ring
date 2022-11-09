@@ -3,89 +3,143 @@ from keygen import *
 
 # NIZK{r: a^r = b}
 
-def schnorr_proof(r, a, message = 1, on_curve = False):
+def schnorr_proof(r, a):
 
   u = pp.RandInt()
-
-  if not on_curve:
-    t = a ** u
-  else:
-    t = a * u
-  
-  c = pp.Zr_hash(t) * message
+  t = a ** u
+  c = pp.Zr_hash(t)
   z = u + r * c
 
-  return (z, t)
+  return (t, z)
 
-def schnorr_verify(a, b, resp, message = 1, on_curve = False):
+def schnorr_verify(a, b, resp):
 
-  z, t = resp
-  c = pp.Zr_hash(t) * message
+  t, z = resp
+  c = pp.Zr_hash(t)
 
-  if not on_curve:
-    return a ** z == b ** c * t
-  else:
-    return a * z == b * c + t
+  return a ** z == b ** c * t
 
-# NIZK{a,b: g^a * h^b = u}
-# in our case, g, h, u are elements of Gt, a, b are elements of Z/rZ
+# verify the correctness of signature by checking:
+# 1. correct encryption of signature key to each ring members;
+# 2. correct encryption of public id under verification key and tracer's key
 
-def okamoto_proof(a, b, g, h, message = 1):
+# !!! any third parties (not nessesary a Ring member) should be able to verify the signature
+# without revealing which member generated such signature,
+# thus anonymity is ensured among the Ring.
 
-  x, y = (pp.RandInt(), pp.RandInt())
-  t = g ** x * h ** y
-  c = pp.Zr_hash(t) * message
-  z = (x + c * a, y + c * b)
+def signature_verify(PKtr, message, signature):
 
-  return (z, t)
+  PKsign, key_encryption_proof, PID_encryption_signature = signature
 
-def okamoto_verify(g, h, u, resp, message):
+  for i in range(len(Ring)):
 
-  z, t = resp
-  c = pp.Zr_hash(t) * message
-
-  return g ** z[0] * h ** z[1] == t * u ** c
-
-def verify_signature(PKtr, message, signature):
-
-  PKsign, key_encryption_proof, PID_encryption_proof = signature
-  PID_encryption, PID_proof = PID_encryption_proof
-  message_hash = pp.Zr_hash(message)
-
-  index = 0
-  knowledge = 0
-
-  for key_encryption, key_proof in key_encryption_proof:
+    key_encryption, key_proof = key_encryption_proof[i]
 
     c1, c2 = key_encryption
-    PKu = Ring[index][0]
+    PKu = Ring[i].public_key
 
     if not all([
       schnorr_verify(pp.g3, pairing(c1, pp.g2), key_proof[0]),
       schnorr_verify(pairing(PKu, pp.g2), pairing(c2, pp.g2)/PKsign, key_proof[1])]):
 
       return 0
-
-    if not knowledge:
-
-      user_PID = Ring[index][1]
-
-      if all([
-        schnorr_verify(pp.g3, user_PID, resp=PID_proof[0], message=message_hash),
-        okamoto_verify(PKtr, PKsign, PID_encryption[2]/user_PID, resp=PID_proof[3], message=message_hash)]):
-
-        knowledge = 1
-
-    index += 1
   
+  return signature_of_knowledge_verify(PID_encryption_signature, PKtr, PKsign, message)
+
+# generate a simulation with Schnorr's protocol,
+
+def schnorr_simulate(g, u, c):
+
+  z = pp.RandInt()
+  t = g ** z / u ** c
+
+  return (t, z)
+
+def schnorr_sim_verify(a, b, t, c, z):
+
+  return a ** z == b ** c * t
+
+# generate a simulation with Okamoto protocol,
+
+def okamoto_simulate(g, h, u, c):
+
+  z = (pp.RandInt(), pp.RandInt())
+  t = g ** z[0] * h ** z[1] / u ** c
+  
+  return (t, z)
+
+def okamoto_sim_verify(g, h, u, t, c, z):
+
+  return g ** z[0] * h ** z[1] == u ** c * t
+
+# 1. prove the signer is a member of the Ring
+# 2. prove the correct encryption of signer's own public id
+# {(sk, r2, r3, i) : g3 ^ sk = PID_i and PKtr ^ r2 * PKsign ^ r3 * PID_i = c3}
+
+def signature_of_knowledge_proof(index, secret_key, r2, r3, PKtr, PKsign, PID_encryption, message):
+
+  commit_schnorr, commit_okamoto = ([0] * len(Ring), [0] * len(Ring))
+  challenge = []
+  response_schnorr, response_okamoto = ([0] * len(Ring), [0] * len(Ring))
+
+  c_sum = 0
+  c = pp.Zr_hash(message)
+
+  for i in range(len(Ring)):
+
+    challenge.append(Integer(pp.RandInt()))
+    commit_schnorr[i], response_schnorr[i] = (schnorr_simulate(pp.g3, Ring[i].public_id, challenge[i]))
+    commit_okamoto[i], response_okamoto[i] = (okamoto_simulate(PKtr, PKsign, PID_encryption[2] / Ring[i].public_id, challenge[i]))
+
+    if i != index:
+      c_sum = c_sum ^ challenge[i]
+      c *= pp.Zr_hash(commit_schnorr[i]) * pp.Zr_hash(commit_okamoto[i])
+
+  u = (pp.RandInt(), pp.RandInt())
+
+  commit_schnorr[index] = pp.g3 ** u[0]
+  commit_okamoto[index] = PKtr ** u[0] * PKsign ** u[1]
+
+  c *= pp.Zr_hash(commit_schnorr[index]) * pp.Zr_hash(commit_okamoto[index])
+
+  challenge[index] = Integer(c) ^ c_sum
+
+  response_schnorr[index] = secret_key * challenge[index] + u[0]
+  response_okamoto[index] = (r2 * challenge[index] + u[0], r3 * challenge[index] + u[1])
+
+  return [(commit_schnorr, commit_okamoto), challenge[:-1], (response_schnorr, response_okamoto)]
+
+def signature_of_knowledge_verify(PID_encryption_signature, PKtr, PKsign, message):
+
+  PID_encryption, PID_signature = PID_encryption_signature
+  (commit_schnorr, commit_okamoto), challenge, (response_schnorr, response_okamoto) = PID_signature
+
+  c = pp.Zr_hash(message)
+
+  for com in commit_schnorr: 
+    c *= pp.Zr_hash(com) 
+
+  for com in commit_okamoto:
+    c *= pp.Zr_hash(com)
+
+  c = Integer(c)
+
+  for ch in challenge:
+    c = c ^ ch
+  
+  challenge.append(c)
+
   return all([
-    knowledge, 
-    schnorr_verify(pp.g3, PID_encryption[0], PID_proof[1], message=message_hash),
-    schnorr_verify(pp.g2, PID_encryption[1], PID_proof[2], message=message_hash, on_curve=True)])
+    schnorr_sim_verify(pp.g3, Ring[i].public_id, commit_schnorr[i], challenge[i], response_schnorr[i])
+    for i in range(len(Ring))
+  ]) and all([
+    okamoto_sim_verify(PKtr, PKsign, PID_encryption[2] / Ring[i].public_id, commit_okamoto[i], challenge[i], response_okamoto[i])
+    for i in range(len(Ring))
+  ])
 
-def verify_trace(PKtr, message, signature, PID, trace, proof_of_trace):
+def trace_verify(PKtr, message, signature, PID, trace, proof_of_trace):
 
-  if not verify_signature(PKtr, message, signature):
+  if not signature_verify(PKtr, message, signature):
 
     print("Signature forgery detected!")
     return 0
