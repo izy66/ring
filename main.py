@@ -16,7 +16,11 @@ if __name__ == "__main__":
   clock = time()
   signature = user.sign(tracer.public_key, message)
 
-  print("signature time:", time() - clock)
+  print("signing time:", time() - clock)
+  clock = time()
+
+  assert(signature_verify(tracer.public_key, message, signature))
+  print("signature verification time:", time() - clock)
   clock = time()
 
   report = user.report(tracer.public_key, message, signature)
