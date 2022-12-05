@@ -130,14 +130,6 @@ which is implemented by applying Fiat-Shamir on Schnorr's protocol.
 
 This project is written in fullfilment of CO 485/685 at Waterloo, and nothing else beyond corretness of protocol is ensured. The source has been tested and benchmarked on the Apple Silicon M1 platform, with Sage version 9.6.
 
-## Benchmark
+### MOV Attack
 
-The benchmark is performed on a ring of 50 members. The signature is generated for a single message of 16 bytes.
-
-| function               | time (s) |
-|------------------------|-------|
-| signing                | 1.588 |
-| signature verification | 3.850 |
-| reporting              | 3.830 |
-| tracing                | 3.868 |
-| trace verification     | 3.871 |
+The default parameter set (param/d224.param) is based on a curve over finite field of 224-bit characteristic with embedding degree 6, which should provide 64-bit security against MOV attack. Stronger parameters can be applied at the expense of performance, but it's yet to be tested for this implementation.
