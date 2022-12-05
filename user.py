@@ -27,12 +27,12 @@ class User:
   # encrypt self's secret signing key under each user's public key 
   # and generate a proof of correct encryption:
 
-  def encrypt_sig_key_and_proof(self, sign_key, ring_public_key):
+  def encrypt_sig_key_and_proof(self, sign_key, ring_public_key, ring_public_id):
 
     r = pp.RandInt()
 
     key_encryption = (pp.g1 * r, ring_public_key * r + sign_key)
-    key_proof = (schnorr_proof(r, pp.g3), schnorr_proof(r, pairing(ring_public_key, pp.g2)))
+    key_proof = (schnorr_proof(r, pp.g3), schnorr_proof(r, ring_public_id))
 
     return (key_encryption, key_proof)
 
@@ -62,7 +62,7 @@ class User:
 
     PKsign, SKsign = User.gen_signing_keys()
 
-    key_encryption_proof = [self.encrypt_sig_key_and_proof(SKsign, Public_User[0]) for Public_User in Ring]
+    key_encryption_proof = [self.encrypt_sig_key_and_proof(SKsign, Public_User.public_key, Public_User.public_id) for Public_User in Ring]
     PID_encryption_signature = self.encrypt_PID_and_sign(PKtr, PKsign, message)
 
     return [PKsign, key_encryption_proof, PID_encryption_signature]

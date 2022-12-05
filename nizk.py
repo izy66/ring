@@ -37,10 +37,11 @@ def signature_verify(PKtr, message, signature):
 
     c1, c2 = key_encryption
     PKu = Ring[i].public_key
+    PID = Ring[i].public_id
 
     if not all([
       schnorr_verify(pp.g3, pairing(c1, pp.g2), key_proof[0]),
-      schnorr_verify(pairing(PKu, pp.g2), pairing(c2, pp.g2)/PKsign, key_proof[1])]):
+      schnorr_verify(PID, pairing(c2, pp.g2)/PKsign, key_proof[1])]):
 
       return 0
   
