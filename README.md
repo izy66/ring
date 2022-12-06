@@ -21,7 +21,7 @@ in a Sage interactive shell.
 
 The notion of ring signature was first proposed in 2001 [RST01]. The goal is to achieve signature anomity by hiding signer's identity among a "ring" of possible signers.
 
-Accountable ring signature was introduced in 2015 [BCCGGP15], where a trusted tracer may reveal the identity behind a ring signature. This approach is further improved by Fraser and Quaglia to ensure that the tracer acts faithfully, by introducing a report mechanism, so that both the tracer and one ring member must be involved to decrypt a signature.
+Accountable ring signature with tracing was introduced in 2015 [BCCGGP15], where a trusted third-party tracer can reveal the identity behind a ring signature. Fraser and Quaglia built upon this approach by introducing a reporting mechanism, so that both the tracer and one ring member must be involved to decrypt a signature, to ensure that the tracer acts faithfully.
 
 ## Outline
 
@@ -33,7 +33,7 @@ To report a malicious message, a reporter in the ring would decrypt $SK_{\text{s
 
 ## Zero-knowedge Proofs
 
-ZK proofs are introduced to ensure the integrity of protocol execution. They are summarized as follows:
+ZK proofs are introduced to ensure the integrity of protocol. They are summarized as follows:
 
 1. Key Encryption Stage: The signer proves correct encryption of $PK_\text{sign}$.
 2. Identity Encryption Stage: The signer proves his membership, and proves correct encryption of his own $PID_\text{u}$.
@@ -132,4 +132,4 @@ This project is written in fullfilment of CO 485/685 at Waterloo, and nothing el
 
 ### MOV Attack
 
-The default parameter set (param/d224.param) is based on a curve over finite field of 224-bit characteristic with embedding degree 6, which should provide 64-bit security against MOV attack. Stronger parameters can be applied at the expense of performance, but it's yet to be tested for this implementation.
+The default parameter set (param/d224.param) is based on a curve over 224-bit prime characteristic finite field with embedding degree 6, which should provide 64-bit security against MOV attack. Stronger parameters can be applied at the expense of performance, but it's not yet tested for this implementation.
