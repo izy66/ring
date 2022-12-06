@@ -1,6 +1,6 @@
 # Ring
 
-A Sage Math implementation of the accountable ring signature protocol proposed in https://doi.org/10.1007/978-3-030-92548-2_10 and https://eprint.iacr.org/2022/1293.
+A Sage Math implementation of the accountable ring signature protocol proposed in https://doi.org/10.1007/978-3-030-92548-2_10 and https://eprint.iacr.org/2022/1293. A C implementation can be found [here](https://github.com/izy66/ring_c).
 
 ## Dependencies:
 
